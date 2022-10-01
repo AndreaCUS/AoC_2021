@@ -6,45 +6,71 @@ import numpy as np
 def load_data():
     with open(os.path.join(sys.path[0], "input.txt")) as file:
         lines = [line.rstrip() for line in file.readlines()]
+        lines.append([""])
     return lines
 
 
 def get_numbers_called(lines):
-    numbers_called = lines[0]
+    numbers_called = [int(number) for number in lines[0].split(",")]
     return numbers_called
 
 
 def generate_boards(lines):
     output_boards = []
-    board_lines = []
-    for i in range(2, len(lines)):
-        line = lines[i]
-
-        if line == "" or i == len(lines):
-            # reached the end of the board, write lines to a board
-            board = Board()
-            board.add_lines(board_lines)
-            output_boards.append(board)
-            # start new line collection
-            board_lines = []
-        else:
-            board_lines.append(line)
+    index = 2
+    for i in range(0, len(lines) // 6):
+        board = Board()
+        board.add_lines(lines[index : index + 5])
+        output_boards.append(board)
+        index += 6
     return output_boards
 
 
 class Board:
     def __init__(self):
         self.board = np.zeros((5, 5), dtype=int)
-        self.marked = np.zeros((5, 5), dtype=int)
+        self.matched_numbers = np.zeros((5, 5), dtype=int)
 
     def add_lines(self, lines):
-        print(lines)
         for i in range(5):
-            line_numbers = [[int(num) for num in lines[i].split(" ") if num != ""]]
+            line_numbers = [int(num) for num in lines[i].split(" ") if num != ""]
             self.board[i] = line_numbers
+
+    def check_number(self, number):
+        if number in self.board:
+            matches = np.where(self.board == number)
+            self.matched_numbers[matches[0], matches[1]] = 1
+            self.board[matches[0], matches[1]] = 0
+
+    def check_winner(self):
+        winner = False
+        score = None
+        if (True in (self.matched_numbers == 1).all(axis=0)) or (
+            True in (self.matched_numbers == 1).all(axis=1)
+        ):
+            winner = True
+            score = self.check_score()
+        return winner, score
+
+    def check_score(self):
+        score = self.board.sum()
+        return score
 
 
 if __name__ == "__main__":
     input_lines = load_data()
     numbers_called = get_numbers_called(input_lines)
     boards = generate_boards(input_lines)
+    winning_board = None
+    winner_score = 0
+    for number in numbers_called:
+        for board in boards:
+            board.check_number(number)
+            winner, score = board.check_winner()
+            if winner:
+                winning_board = board
+                winner_score = score
+                break
+        if winning_board != None:
+            print("Winning board found. Final score: ", str(winner_score * number))
+            break
